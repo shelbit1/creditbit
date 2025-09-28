@@ -42,7 +42,7 @@ const STORAGE_KEY = "ledger-entries";
 export default function LedgerPage() {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [filter, setFilter] = useState<FilterMode>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | EntryStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | EntryStatus>("active");
   const [showBorrowForm, setShowBorrowForm] = useState<boolean>(false);
   const [showLendForm, setShowLendForm] = useState<boolean>(false);
   const [showPaymentFixForm, setShowPaymentFixForm] = useState<string | null>(null);
