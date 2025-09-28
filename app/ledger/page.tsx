@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 
 type EntryType = "credit" | "debit";
+type EntryStatus = "active" | "archived";
 type FilterMode = "all" | "i_owe" | "owed_to_me";
 
 type PaymentFixation = {
@@ -31,6 +32,7 @@ type LedgerEntry = {
   account: string;
   date: string;
   createdAt: string;
+  status: EntryStatus;
   paymentFixations?: PaymentFixation[];
   receiptFixations?: ReceiptFixation[];
 };
@@ -40,6 +42,7 @@ const STORAGE_KEY = "ledger-entries";
 export default function LedgerPage() {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [filter, setFilter] = useState<FilterMode>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | EntryStatus>("all");
   const [showBorrowForm, setShowBorrowForm] = useState<boolean>(false);
   const [showLendForm, setShowLendForm] = useState<boolean>(false);
   const [showPaymentFixForm, setShowPaymentFixForm] = useState<string | null>(null);
@@ -78,8 +81,12 @@ export default function LedgerPage() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const parsedEntries = JSON.parse(saved) as LedgerEntry[];
-        setEntries(parsedEntries);
+        const parsed = JSON.parse(saved) as any[];
+        const normalized: LedgerEntry[] = parsed.map((e) => ({
+          ...e,
+          status: e.status === "archived" ? "archived" : "active",
+        }));
+        setEntries(normalized);
       }
     } catch (error) {
       console.error("Ошибка загрузки данных из localStorage:", error);
@@ -137,21 +144,27 @@ export default function LedgerPage() {
 
   // Отфильтрованные записи для отображения
   const filteredEntries = useMemo(() => {
-    if (filter === "all") return entries;
+    let result = entries;
     if (filter === "i_owe") {
-      return entries.filter((e) => {
+      result = result.filter((e) => {
         if (e.type !== "debit") return false;
         const paid = (e.paymentFixations || []).reduce((s, p) => s + p.amount, 0);
         return e.amount - paid > 0;
       });
+    } else if (filter === "owed_to_me") {
+      result = result.filter((e) => {
+        if (e.type !== "credit") return false;
+        const received = (e.receiptFixations || []).reduce((s, r) => s + r.amount, 0);
+        return e.amount - received > 0;
+      });
     }
-    // owed_to_me
-    return entries.filter((e) => {
-      if (e.type !== "credit") return false;
-      const received = (e.receiptFixations || []).reduce((s, r) => s + r.amount, 0);
-      return e.amount - received > 0;
-    });
-  }, [entries, filter]);
+
+    if (statusFilter !== "all") {
+      result = result.filter((e) => e.status === statusFilter);
+    }
+
+    return result;
+  }, [entries, filter, statusFilter]);
 
   function handleBorrow() {
     setShowBorrowForm(true);
@@ -193,6 +206,7 @@ export default function LedgerPage() {
       account: creditAccount.trim(),
       date: borrowDate,
       createdAt: new Date().toISOString(),
+      status: "active",
     };
 
     setEntries((prev) => [newEntry, ...prev]);
@@ -229,6 +243,7 @@ export default function LedgerPage() {
       account: debitAccount.trim(),
       date: lendDate,
       createdAt: new Date().toISOString(),
+      status: "active",
     };
 
     setEntries((prev) => [newEntry, ...prev]);
@@ -357,6 +372,16 @@ export default function LedgerPage() {
 
   function togglePaymentHistory(entryId: string) {
     setShowPaymentHistory(showPaymentHistory === entryId ? null : entryId);
+  }
+
+  function toggleEntryStatus(entryId: string) {
+    setEntries((prev) =>
+      prev.map((e) =>
+        e.id === entryId
+          ? { ...e, status: e.status === "active" ? "archived" : "active" }
+          : e
+      )
+    );
   }
 
   return (
@@ -581,6 +606,39 @@ export default function LedgerPage() {
         </button>
       </div>
 
+      <div className="mb-4 flex items-center gap-2 text-xs">
+        <button
+          onClick={() => setStatusFilter("all")}
+          className={`px-2 py-1 rounded ${
+            statusFilter === "all"
+              ? "bg-foreground text-background border border-transparent"
+              : "border border-black/[.08] dark:border-white/[.145] hover:bg-black/[.05] dark:hover:bg-white/[.06]"
+          }`}
+        >
+          все статусы
+        </button>
+        <button
+          onClick={() => setStatusFilter("active")}
+          className={`px-2 py-1 rounded ${
+            statusFilter === "active"
+              ? "bg-foreground text-background border border-transparent"
+              : "border border-black/[.08] dark:border-white/[.145] hover:bg-black/[.05] dark:hover:bg-white/[.06]"
+          }`}
+        >
+          активные
+        </button>
+        <button
+          onClick={() => setStatusFilter("archived")}
+          className={`px-2 py-1 rounded ${
+            statusFilter === "archived"
+              ? "bg-foreground text-background border border-transparent"
+              : "border border-black/[.08] dark:border-white/[.145] hover:bg-black/[.05] dark:hover:bg-white/[.06]"
+          }`}
+        >
+          архивные
+        </button>
+      </div>
+
       <ul className="space-y-2">
         {filteredEntries.length === 0 && (
           <li className="text-sm text-black/60 dark:text-white/60">Пока нет операций</li>
@@ -604,8 +662,23 @@ export default function LedgerPage() {
                   </span>
                 )}
               </div>
-              <div className="text-xs text-black/60 dark:text-white/60">
-                {new Date(e.date).toLocaleDateString()}
+              <div className="flex items-center gap-3">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                  (e as any).status === "active"
+                    ? "text-green-700 border-green-300 bg-green-50 dark:bg-green-950"
+                    : "text-gray-600 border-gray-300 bg-gray-50 dark:bg-gray-900"
+                }`}>
+                  {(e as any).status === "active" ? "Активный" : "Архивный"}
+                </span>
+                <button
+                  onClick={() => toggleEntryStatus(e.id)}
+                  className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  {(e as any).status === "active" ? "архивировать" : "восстановить"}
+                </button>
+                <div className="text-xs text-black/60 dark:text-white/60">
+                  {new Date(e.date).toLocaleDateString()}
+                </div>
               </div>
             </div>
             <div className="text-xs text-black/60 dark:text-white/60 space-y-1 mb-3">
@@ -779,7 +852,7 @@ export default function LedgerPage() {
                   </button>
                 )}
                 
-                {e.type === "debit" && (
+                {e.type === "debit" && (e as any).status === "active" && (
                   <button
                     onClick={() => handleFixPayment(e.id)}
                     className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 ml-2"
@@ -788,7 +861,7 @@ export default function LedgerPage() {
                   </button>
                 )}
                 
-                {e.type === "credit" && (
+                {e.type === "credit" && (e as any).status === "active" && (
                   <button
                     onClick={() => handleFixReceipt(e.id)}
                     className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
