@@ -425,19 +425,6 @@ export default function LedgerPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Прикрепить файл <span className="text-gray-500">(необязательно)</span>:</label>
-              <input
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => setBorrowAttachment(e.target.files?.[0] || null)}
-                className="w-full border border-black/[.08] dark:border-white/[.145] rounded-md px-3 py-2 bg-background file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
-              />
-              {borrowAttachment && (
-                <div className="text-xs text-gray-600 mt-1">Выбран файл: {borrowAttachment.name}</div>
-              )}
-            </div>
-
-            <div>
               <label className="block text-sm font-medium mb-1">Дата:</label>
               <input
                 type="date"
@@ -481,6 +468,19 @@ export default function LedgerPage() {
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium mb-1">Прикрепить файл <span className="text-gray-500">(необязательно)</span>:</label>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => setBorrowAttachment(e.target.files?.[0] || null)}
+                className="w-full border border-black/[.08] dark:border-white/[.145] rounded-md px-3 py-2 bg-background file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+              />
+              {borrowAttachment && (
+                <div className="text-xs text-gray-600 mt-1">Выбран файл: {borrowAttachment.name}</div>
+              )}
+            </div>
+
             <div className="flex gap-3 pt-2">
               <button
                 type="submit"
@@ -512,19 +512,6 @@ export default function LedgerPage() {
                 className="w-full border border-black/[.08] dark:border-white/[.145] rounded-md px-3 py-2 bg-background"
                 placeholder="Имя контрагента"
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Прикрепить файл <span className="text-gray-500">(необязательно)</span>:</label>
-              <input
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => setLendAttachment(e.target.files?.[0] || null)}
-                className="w-full border border-black/[.08] dark:border-white/[.145] rounded-md px-3 py-2 bg-background file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
-              />
-              {lendAttachment && (
-                <div className="text-xs text-gray-600 mt-1">Выбран файл: {lendAttachment.name}</div>
-              )}
             </div>
 
             <div>
@@ -569,6 +556,19 @@ export default function LedgerPage() {
                 className="w-full border border-black/[.08] dark:border-white/[.145] rounded-md px-3 py-2 bg-background"
                 placeholder="Номер счета или название"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Прикрепить файл <span className="text-gray-500">(необязательно)</span>:</label>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => setLendAttachment(e.target.files?.[0] || null)}
+                className="w-full border border-black/[.08] dark:border-white/[.145] rounded-md px-3 py-2 bg-background file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+              />
+              {lendAttachment && (
+                <div className="text-xs text-gray-600 mt-1">Выбран файл: {lendAttachment.name}</div>
+              )}
             </div>
 
             <div className="flex gap-3 pt-2">
