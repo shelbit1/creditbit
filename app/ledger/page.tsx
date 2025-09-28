@@ -34,6 +34,11 @@ type LedgerEntry = {
   createdAt: string;
   status: EntryStatus;
   entryAttachmentFileName?: string;
+  entryAttachment?: {
+    name: string;
+    type: string;
+    dataUrl: string;
+  };
   paymentFixations?: PaymentFixation[];
   receiptFixations?: ReceiptFixation[];
 };
@@ -78,6 +83,16 @@ export default function LedgerPage() {
   const [receiptAccount, setReceiptAccount] = useState<string>("");
   const [receiptDescription, setReceiptDescription] = useState<string>("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+
+  // helper: чтение файла как data URL
+  function readFileAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
 
   // Загрузка данных из localStorage при монтировании компонента
   useEffect(() => {
@@ -185,7 +200,7 @@ export default function LedgerPage() {
     setShowBorrowForm(false);
   }
 
-  function handleSubmitBorrow(e: React.FormEvent) {
+  async function handleSubmitBorrow(e: React.FormEvent) {
     e.preventDefault();
     
     const parsed = Number(borrowAmount);
@@ -206,6 +221,14 @@ export default function LedgerPage() {
       return;
     }
 
+    const attachment = borrowAttachment
+      ? {
+          name: borrowAttachment.name,
+          type: borrowAttachment.type || "application/octet-stream",
+          dataUrl: await readFileAsDataUrl(borrowAttachment),
+        }
+      : undefined;
+
     const newEntry: LedgerEntry = {
       id: crypto.randomUUID(),
       type: "debit", // беру в долг = дебит (увеличиваю пассив)
@@ -217,13 +240,14 @@ export default function LedgerPage() {
       createdAt: new Date().toISOString(),
       status: "active",
       entryAttachmentFileName: borrowAttachment?.name || undefined,
+      entryAttachment: attachment,
     };
 
     setEntries((prev) => [newEntry, ...prev]);
     resetBorrowForm();
   }
 
-  function handleSubmitLend(e: React.FormEvent) {
+  async function handleSubmitLend(e: React.FormEvent) {
     e.preventDefault();
     
     const parsed = Number(lendAmount);
@@ -244,6 +268,14 @@ export default function LedgerPage() {
       return;
     }
 
+    const attachment = lendAttachment
+      ? {
+          name: lendAttachment.name,
+          type: lendAttachment.type || "application/octet-stream",
+          dataUrl: await readFileAsDataUrl(lendAttachment),
+        }
+      : undefined;
+
     const newEntry: LedgerEntry = {
       id: crypto.randomUUID(),
       type: "credit", // отдаю в долг = кредит (увеличиваю актив)
@@ -255,6 +287,7 @@ export default function LedgerPage() {
       createdAt: new Date().toISOString(),
       status: "active",
       entryAttachmentFileName: lendAttachment?.name || undefined,
+      entryAttachment: attachment,
     };
 
     setEntries((prev) => [newEntry, ...prev]);
@@ -710,8 +743,18 @@ export default function LedgerPage() {
               <div>Контрагент: {e.counterparty}</div>
               <div>Описание: {e.description}</div>
               {e.account && <div>Счёт: {e.account}</div>}
-              {e.entryAttachmentFileName && (
-                <div>Файл: {e.entryAttachmentFileName}</div>
+              {e.entryAttachment && (
+                <div>
+                  Файл: <a
+                    href={e.entryAttachment.dataUrl}
+                    download={e.entryAttachment.name}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline text-blue-600"
+                  >
+                    {e.entryAttachment.name}
+                  </a>
+                </div>
               )}
             </div>
             {e.type === "debit" && showPaymentFixForm === e.id ? (
