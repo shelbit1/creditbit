@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 
 type EntryType = "credit" | "debit";
+type FilterMode = "all" | "i_owe" | "owed_to_me";
 
 type PaymentFixation = {
   amount: number;
@@ -38,6 +39,7 @@ const STORAGE_KEY = "ledger-entries";
 
 export default function LedgerPage() {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
+  const [filter, setFilter] = useState<FilterMode>("all");
   const [showBorrowForm, setShowBorrowForm] = useState<boolean>(false);
   const [showLendForm, setShowLendForm] = useState<boolean>(false);
   const [showPaymentFixForm, setShowPaymentFixForm] = useState<string | null>(null);
@@ -112,6 +114,44 @@ export default function LedgerPage() {
       return acc + entryBalance;
     }, 0);
   }, [entries]);
+
+  // Сколько мне должны (по кредитам минус зафиксированные поступления)
+  const totalOwedToMe = useMemo(() => {
+    return entries.reduce((sum, e) => {
+      if (e.type !== "credit") return sum;
+      const received = (e.receiptFixations || []).reduce((s, r) => s + r.amount, 0);
+      const outstanding = Math.max(e.amount - received, 0);
+      return sum + outstanding;
+    }, 0);
+  }, [entries]);
+
+  // Сколько я должен (по дебетам минус зафиксированные платежи)
+  const totalIOwe = useMemo(() => {
+    return entries.reduce((sum, e) => {
+      if (e.type !== "debit") return sum;
+      const paid = (e.paymentFixations || []).reduce((s, p) => s + p.amount, 0);
+      const outstanding = Math.max(e.amount - paid, 0);
+      return sum + outstanding;
+    }, 0);
+  }, [entries]);
+
+  // Отфильтрованные записи для отображения
+  const filteredEntries = useMemo(() => {
+    if (filter === "all") return entries;
+    if (filter === "i_owe") {
+      return entries.filter((e) => {
+        if (e.type !== "debit") return false;
+        const paid = (e.paymentFixations || []).reduce((s, p) => s + p.amount, 0);
+        return e.amount - paid > 0;
+      });
+    }
+    // owed_to_me
+    return entries.filter((e) => {
+      if (e.type !== "credit") return false;
+      const received = (e.receiptFixations || []).reduce((s, r) => s + r.amount, 0);
+      return e.amount - received > 0;
+    });
+  }, [entries, filter]);
 
   function handleBorrow() {
     setShowBorrowForm(true);
@@ -494,15 +534,58 @@ export default function LedgerPage() {
         )}
       </div>
 
-      <div className="mb-4 text-sm">
-        Баланс: <span className={balance >= 0 ? "text-green-600" : "text-red-600"}>{balance.toFixed(2)}</span>
+      <div className="mb-4 text-sm flex items-center justify-between">
+        <div>
+          Баланс: <span className={balance >= 0 ? "text-green-600" : "text-red-600"}>{balance.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center gap-6">
+          <div>
+            Мне должны: <span className="text-green-600">{totalOwedToMe.toFixed(2)}</span>
+          </div>
+          <div>
+            Я должен: <span className="text-red-600">{totalIOwe.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-4 flex items-center gap-2 text-xs">
+        <button
+          onClick={() => setFilter("all")}
+          className={`px-2 py-1 rounded ${
+            filter === "all"
+              ? "bg-foreground text-background border border-transparent"
+              : "border border-black/[.08] dark:border-white/[.145] hover:bg-black/[.05] dark:hover:bg-white/[.06]"
+          }`}
+        >
+          все
+        </button>
+        <button
+          onClick={() => setFilter("i_owe")}
+          className={`px-2 py-1 rounded ${
+            filter === "i_owe"
+              ? "bg-foreground text-background border border-transparent"
+              : "border border-black/[.08] dark:border-white/[.145] hover:bg-black/[.05] dark:hover:bg-white/[.06]"
+          }`}
+        >
+          я должен
+        </button>
+        <button
+          onClick={() => setFilter("owed_to_me")}
+          className={`px-2 py-1 rounded ${
+            filter === "owed_to_me"
+              ? "bg-foreground text-background border border-transparent"
+              : "border border-black/[.08] dark:border-white/[.145] hover:bg-black/[.05] dark:hover:bg-white/[.06]"
+          }`}
+        >
+          мне должны
+        </button>
       </div>
 
       <ul className="space-y-2">
-        {entries.length === 0 && (
+        {filteredEntries.length === 0 && (
           <li className="text-sm text-black/60 dark:text-white/60">Пока нет операций</li>
         )}
-        {entries.map((e) => (
+        {filteredEntries.map((e) => (
           <li
             key={e.id}
             className="border border-black/[.08] dark:border-white/[.145] rounded-md p-3"
