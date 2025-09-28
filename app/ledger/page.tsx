@@ -33,6 +33,7 @@ type LedgerEntry = {
   date: string;
   createdAt: string;
   status: EntryStatus;
+  entryAttachmentFileName?: string;
   paymentFixations?: PaymentFixation[];
   receiptFixations?: ReceiptFixation[];
 };
@@ -55,6 +56,7 @@ export default function LedgerPage() {
   const [borrowDescription, setBorrowDescription] = useState<string>("");
   const [borrowAmount, setBorrowAmount] = useState<string>("");
   const [creditAccount, setCreditAccount] = useState<string>("");
+  const [borrowAttachment, setBorrowAttachment] = useState<File | null>(null);
 
   // Поля формы "отдаю в долг"
   const [lendCounterparty, setLendCounterparty] = useState<string>("");
@@ -62,6 +64,7 @@ export default function LedgerPage() {
   const [lendDescription, setLendDescription] = useState<string>("");
   const [lendAmount, setLendAmount] = useState<string>("");
   const [debitAccount, setDebitAccount] = useState<string>("");
+  const [lendAttachment, setLendAttachment] = useState<File | null>(null);
 
   // Поля формы "зафиксировать платеж"
   const [paymentAmount, setPaymentAmount] = useState<string>("");
@@ -213,6 +216,7 @@ export default function LedgerPage() {
       date: borrowDate,
       createdAt: new Date().toISOString(),
       status: "active",
+      entryAttachmentFileName: borrowAttachment?.name || undefined,
     };
 
     setEntries((prev) => [newEntry, ...prev]);
@@ -250,6 +254,7 @@ export default function LedgerPage() {
       date: lendDate,
       createdAt: new Date().toISOString(),
       status: "active",
+      entryAttachmentFileName: lendAttachment?.name || undefined,
     };
 
     setEntries((prev) => [newEntry, ...prev]);
@@ -262,6 +267,7 @@ export default function LedgerPage() {
     setBorrowDescription("");
     setBorrowAmount("");
     setCreditAccount("");
+    setBorrowAttachment(null);
     setShowBorrowForm(false);
   }
 
@@ -271,6 +277,7 @@ export default function LedgerPage() {
     setLendDescription("");
     setLendAmount("");
     setDebitAccount("");
+    setLendAttachment(null);
     setShowLendForm(false);
   }
 
@@ -418,6 +425,19 @@ export default function LedgerPage() {
             </div>
 
             <div>
+              <label className="block text-sm font-medium mb-1">Прикрепить файл <span className="text-gray-500">(необязательно)</span>:</label>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => setBorrowAttachment(e.target.files?.[0] || null)}
+                className="w-full border border-black/[.08] dark:border-white/[.145] rounded-md px-3 py-2 bg-background file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+              />
+              {borrowAttachment && (
+                <div className="text-xs text-gray-600 mt-1">Выбран файл: {borrowAttachment.name}</div>
+              )}
+            </div>
+
+            <div>
               <label className="block text-sm font-medium mb-1">Дата:</label>
               <input
                 type="date"
@@ -492,6 +512,19 @@ export default function LedgerPage() {
                 className="w-full border border-black/[.08] dark:border-white/[.145] rounded-md px-3 py-2 bg-background"
                 placeholder="Имя контрагента"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Прикрепить файл <span className="text-gray-500">(необязательно)</span>:</label>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => setLendAttachment(e.target.files?.[0] || null)}
+                className="w-full border border-black/[.08] dark:border-white/[.145] rounded-md px-3 py-2 bg-background file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+              />
+              {lendAttachment && (
+                <div className="text-xs text-gray-600 mt-1">Выбран файл: {lendAttachment.name}</div>
+              )}
             </div>
 
             <div>
@@ -677,6 +710,9 @@ export default function LedgerPage() {
               <div>Контрагент: {e.counterparty}</div>
               <div>Описание: {e.description}</div>
               {e.account && <div>Счёт: {e.account}</div>}
+              {e.entryAttachmentFileName && (
+                <div>Файл: {e.entryAttachmentFileName}</div>
+              )}
             </div>
             {e.type === "debit" && showPaymentFixForm === e.id ? (
               <form onSubmit={handleSubmitPaymentFix} className="space-y-2 mt-2 p-2 border border-gray-200 rounded">
