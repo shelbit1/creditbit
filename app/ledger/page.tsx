@@ -142,25 +142,31 @@ export default function LedgerPage() {
     }, 0);
   }, [entries]);
 
+  // Остаток по записи и производный статус
+  function computeOutstanding(entry: LedgerEntry): number {
+    if (entry.type === "debit") {
+      const paid = (entry.paymentFixations || []).reduce((s, p) => s + p.amount, 0);
+      return Math.max(entry.amount - paid, 0);
+    }
+    const received = (entry.receiptFixations || []).reduce((s, r) => s + r.amount, 0);
+    return Math.max(entry.amount - received, 0);
+  }
+
+  function computeStatus(entry: LedgerEntry): EntryStatus {
+    return computeOutstanding(entry) > 0 ? "active" : "archived";
+  }
+
   // Отфильтрованные записи для отображения
   const filteredEntries = useMemo(() => {
     let result = entries;
     if (filter === "i_owe") {
-      result = result.filter((e) => {
-        if (e.type !== "debit") return false;
-        const paid = (e.paymentFixations || []).reduce((s, p) => s + p.amount, 0);
-        return e.amount - paid > 0;
-      });
+      result = result.filter((e) => e.type === "debit" && computeOutstanding(e) > 0);
     } else if (filter === "owed_to_me") {
-      result = result.filter((e) => {
-        if (e.type !== "credit") return false;
-        const received = (e.receiptFixations || []).reduce((s, r) => s + r.amount, 0);
-        return e.amount - received > 0;
-      });
+      result = result.filter((e) => e.type === "credit" && computeOutstanding(e) > 0);
     }
 
     if (statusFilter !== "all") {
-      result = result.filter((e) => e.status === statusFilter);
+      result = result.filter((e) => computeStatus(e) === statusFilter);
     }
 
     return result;
@@ -374,15 +380,7 @@ export default function LedgerPage() {
     setShowPaymentHistory(showPaymentHistory === entryId ? null : entryId);
   }
 
-  function toggleEntryStatus(entryId: string) {
-    setEntries((prev) =>
-      prev.map((e) =>
-        e.id === entryId
-          ? { ...e, status: e.status === "active" ? "archived" : "active" }
-          : e
-      )
-    );
-  }
+  // Ручное переключение статуса больше не требуется — статус вычисляется из остатка
 
   return (
     <div className="max-w-2xl">
@@ -664,18 +662,12 @@ export default function LedgerPage() {
               </div>
               <div className="flex items-center gap-3">
                 <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
-                  (e as any).status === "active"
+                  computeStatus(e) === "active"
                     ? "text-green-700 border-green-300 bg-green-50 dark:bg-green-950"
                     : "text-gray-600 border-gray-300 bg-gray-50 dark:bg-gray-900"
                 }`}>
-                  {(e as any).status === "active" ? "Активный" : "Архивный"}
+                  {computeStatus(e) === "active" ? "Активный" : "Архивный"}
                 </span>
-                <button
-                  onClick={() => toggleEntryStatus(e.id)}
-                  className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  {(e as any).status === "active" ? "архивировать" : "восстановить"}
-                </button>
                 <div className="text-xs text-black/60 dark:text-white/60">
                   {new Date(e.date).toLocaleDateString()}
                 </div>
@@ -852,7 +844,7 @@ export default function LedgerPage() {
                   </button>
                 )}
                 
-                {e.type === "debit" && (e as any).status === "active" && (
+                {e.type === "debit" && computeStatus(e) === "active" && (
                   <button
                     onClick={() => handleFixPayment(e.id)}
                     className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 ml-2"
@@ -861,7 +853,7 @@ export default function LedgerPage() {
                   </button>
                 )}
                 
-                {e.type === "credit" && (e as any).status === "active" && (
+                {e.type === "credit" && computeStatus(e) === "active" && (
                   <button
                     onClick={() => handleFixReceipt(e.id)}
                     className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
